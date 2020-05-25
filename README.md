@@ -10,7 +10,6 @@ This project pulls enterprise events from Box and inserts them into a Tableau Hy
     * [tableauhyperapi](https://help.tableau.com/current/api/hyper_api/en-us/reference/py/index.html): Used to insert Box events into a Hyper API file.
     * [tableauserverclient](https://tableau.github.io/server-client-python/docs/): Python client SDK for the Tableau REST APIs. This is used to publish the hyper file to a Tableau Server.
     * [dateutil](https://dateutil.readthedocs.io/en/stable/): Used for datetime conversion and parsing utilities.
-    * [openpyxl](https://openpyxl.readthedocs.io/en/stable/): Used for create the Excel workbook and spreadsheet.
 4. Adjust the [limit](/hyper_box_events.py#L24) variable as needed.
     * More details on the [Enterprise Events Stream endpoint.](https://developer.box.com/reference/get-events/#request)
 5. Run the [hyper_box_events.py](/hyper_box_events.py) Python script with the following parameters:
