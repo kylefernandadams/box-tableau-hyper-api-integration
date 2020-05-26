@@ -23,10 +23,10 @@ box_config = None
 # Limit of Box events to retrieve before starting to paginate
 limit = 100
 
-# Previous stream position to use for events pagination
-previous_stream_position = 0
+# Month lookback variable
 month_lookback = 1
-last_event_created_at = None
+
+# Store Box events
 box_events = []
 
 
@@ -90,7 +90,7 @@ def insert_box_events():
 
             # Get the Box enterprise events for a given date range
             print('Using date range for events  today: {0} and starting datetime: {1}'.format(today, last_event_created_at))
-            get_box_events(box_client, previous_stream_position, last_event_created_at, today)
+            get_box_events(box_client, 0, last_event_created_at, today)
 
             # Insert the Box enteprise events into the Hyper file
             with Inserter(connection, box_events_table_def) as inserter:
@@ -104,41 +104,36 @@ def insert_box_events():
     print("The Hyper process has been shut down.")
 
 def get_box_events(box_client, stream_position, created_after, created_before):
-    # Populate the URL query parameters
-    url_params = 'stream_type=admin_logs&limit={0}&stream_position={1}&created_after={2}&created_before={3}'.format(limit, stream_position, created_after, created_before)
+    chunk_size = None
+    while chunk_size != 0:
+         # Populate the URL query parameters
+        url_params = 'stream_type=admin_logs&limit={0}&stream_position={1}&created_after={2}&created_before={3}'.format(limit, stream_position, created_after, created_before)
 
-    # Set the previous stream position so we can compare it later on
-    previous_stream_position = stream_position
+        # GET request to retrieve events
+        events_response = box_client.make_request(
+            'GET',
+            box_client.get_url('events?{0}'.format(url_params)),
+        ).json()
 
-    # GET request to retrieve events
-    events_response = box_client.make_request(
-        'GET',
-        box_client.get_url('events?{0}'.format(url_params)),
-    ).json()
+        # Get the next stream position
+        stream_position = events_response['next_stream_position']
+        chunk_size = events_response['chunk_size']
+        print('Found events response with chunk_size={0}, next_stream_position={1}'.format(chunk_size, stream_position))
 
-    # Get the next stream position
-    next_stream_position = events_response['next_stream_position']
-    chunk_size = events_response['chunk_size']
-    print('Found events response with chunk_size={0}, next_stream_position={1}, and previous_stream_position={2}'.format(chunk_size, next_stream_position, previous_stream_position))
-
-    # Loop through the events and store them in a dictionary.
-    events = events_response['entries']
-    for event in events:
-        event_data = []
-        event_data.append(event['event_id'])
-        event_data.append(event['event_type'])
-        event_data.append(dateparser.parse(event['created_at']))
-        event_data.append(event['created_by']['id'])
-        event_data.append(event['created_by']['name'])
-        event_data.append(event['created_by']['login'])
-        event_data.append(json.dumps(event['source']))
-        event_data.append(event['ip_address'])
-        event_data.append(json.dumps(event['additional_details']))
-        box_events.append(event_data)
-
-    # If the previous stream position is not equal to the next stream position, we need to continue to paginate and call the function reflectively
-    if previous_stream_position != next_stream_position:
-        get_box_events(box_client, next_stream_position, created_after, created_before)
+        # Loop through the events and store them in a dictionary.
+        events = events_response['entries']
+        for event in events:
+            event_data = []
+            event_data.append(event['event_id'])
+            event_data.append(event['event_type'])
+            event_data.append(dateparser.parse(event['created_at']))
+            event_data.append(event['created_by']['id'])
+            event_data.append(event['created_by']['name'])
+            event_data.append(event['created_by']['login'])
+            event_data.append(json.dumps(event['source']))
+            event_data.append(event['ip_address'])
+            event_data.append(json.dumps(event['additional_details']))
+            box_events.append(event_data)
 
 # Pass into commandline args
 if __name__ == '__main__':
